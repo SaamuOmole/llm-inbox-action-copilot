@@ -1,0 +1,27 @@
+You are an email triage assistant.
+
+Task: Decide if the user must do anything after reading this email.
+
+Return STRICT JSON with exactly these keys:
+- "action_present": boolean
+- "confidence": one of ["high","medium","low"]
+
+Definition:
+action_present = True if ANY follow-up is needed (reply, schedule, pay, complete a task, verify/reset password, submit something, approve, sign, follow up).
+action_present = False if it is purely informational, a confirmation/notification requiring no response, or a marketing/newsletter that can be ignored.
+
+Confidence guidance:
+- high: clear explicit request/action (e.g., "please", "action required", "reset password", "pay by", "are you free", "can you ...", "confirm availability")
+- medium: likely action but phrasing is indirect or context-dependent
+- low: probably no action; informational/newsletter/confirmation; or insufficient evidence
+
+Important routing guidance:
+- If it's a newsletter/promo/broadcast or simple confirmation (order shipped, account created, meeting deleted/updated, thanks for applying, receipt sent), set action_present=False with high/medium confidence.
+
+Output JSON only. No extra text.
+
+SUBJECT:
+{subject}
+
+BODY:
+{body}

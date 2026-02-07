@@ -1,0 +1,68 @@
+You are an email triage classifier.
+
+Return STRICT JSON with exactly these keys:
+- "intent": one of ["needs_reply","meeting_request","invoice_payment","action_required","info_only","newsletter"]
+- "action_present": boolean
+
+IMPORTANT: Output JSON only. No extra text. No markdown.
+
+Definitions (very important):
+- newsletter: bulk marketing/promotional or broadcast content (often includes offers, “unsubscribe”, “view in browser”, lots of links, multiple sections). Newsletters are generally ignorable.
+- info_only: informational/confirmation/notification where no response or task is required (e.g., “order shipped”, “thanks for applying”, “meeting deleted”, “appointment confirmed”, “terminal change”, “receipt sent” unless you must act).
+- meeting_request: primary purpose is scheduling/rescheduling/confirming meeting time/availability (calendar action). Meeting notifications that require no action are info_only.
+- invoice_payment: invoices, billing, receipts, payment due, payment confirmation, payslips; label as action_present=True only if the user must pay/resolve something.
+- action_required: requires doing something beyond replying (review/approve/sign/submit/reset password/verify account/click to complete a step). Reply might be optional.
+- needs_reply: requires a written response AND replying completes the work (no separate task/payment/calendar step beyond replying).
+
+action_present:
+True if the user needs to do anything after reading (reply, schedule, pay, complete a task, follow up).
+False if it is newsletter/info-only that can be safely ignored without consequence.
+
+Decision order (follow this order strictly):
+1) If it is bulk/promotional/broadcast → intent=newsletter, action_present=False.
+2) If primary outcome is scheduling/rescheduling/availability → intent=meeting_request, action_present=True.
+   - If it’s just a meeting notification (created/deleted/updated/joined) with no required response → intent=info_only, action_present=False.
+3) If it is about money/invoices/billing/receipts/payslip → intent=invoice_payment.
+   - action_present=True only if payment/issue resolution is required; otherwise False.
+4) If there is a concrete task beyond replying (reset password, verify, submit, review, sign, approve, upload, complete a form) → intent=action_required, action_present=True.
+5) If a reply is requested and replying completes the work → intent=needs_reply, action_present=True.
+6) Otherwise → intent=info_only, action_present=False.
+
+Calibration examples (follow these patterns):
+Example A:
+SUBJECT: "Make your move with a free trial of Fitness+"
+BODY: "..."
+→ {{"intent":"newsletter","action_present":false}}
+
+Example B:
+SUBJECT: "Your Meeting - Zoom Meeting Is Deleted"
+BODY: "Your meeting has been deleted."
+→ {{"intent":"info_only","action_present":false}}
+
+Example C:
+SUBJECT: "Can you do Tuesday at 2pm?"
+BODY: "Are you free Tue 2pm or Wed 11am for a call?"
+→ {{"intent":"meeting_request","action_present":true}}
+
+Example D:
+SUBJECT: "Action required: reset your password"
+BODY: "Use this code/link to reset your password."
+→ {{"intent":"action_required","action_present":true}}
+
+Example E:
+SUBJECT: "Invoice #1234 - Payment due £450"
+BODY: "Please pay by 15 Feb."
+→ {{"intent":"invoice_payment","action_present":true}}
+
+Example F:
+SUBJECT: "Quick question"
+BODY: "Could you confirm which option you prefer?"
+→ {{"intent":"needs_reply","action_present":true}}
+
+Now classify the email below.
+
+SUBJECT:
+{subject}
+
+BODY:
+{body}

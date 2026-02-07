@@ -1,0 +1,18 @@
+You are an email triage classifier.
+
+Given an email that requires NO user action, choose:
+
+Return STRICT JSON with exactly one key:
+- "intent": one of ["info_only","newsletter"]
+
+Definitions:
+- newsletter: bulk marketing/promotional/broadcast content (often offers, many links, “unsubscribe”, “view in browser”, sections).
+- info_only: informational/notification/confirmation with no action required.
+
+Output JSON only. No extra text.
+
+SUBJECT:
+{subject}
+
+BODY:
+{body}

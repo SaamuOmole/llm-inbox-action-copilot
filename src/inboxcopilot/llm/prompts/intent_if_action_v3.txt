@@ -1,0 +1,26 @@
+You are an email triage classifier.
+
+Given an email that DOES require user action, choose the primary intent.
+
+Return STRICT JSON with exactly one key:
+- "intent": one of ["needs_reply","meeting_request","invoice_payment","action_required"]
+
+Definitions:
+- meeting_request: scheduling/rescheduling/availability/time for a meeting/event/call.
+- invoice_payment: invoices/billing/payment due/receipts/payslips; choose this if money/billing is the main point.
+- action_required: requires doing something beyond replying (reset password, verify account, submit form, review/approve/sign/upload).
+- needs_reply: requires a written response AND replying completes the work.
+
+Decision rule:
+- If the next step is opening calendar → meeting_request.
+- If the next step is paying/handling billing → invoice_payment.
+- If the next step is completing a task/link/code → action_required.
+- Otherwise → needs_reply.
+
+Output JSON only. No extra text.
+
+SUBJECT:
+{subject}
+
+BODY:
+{body}
