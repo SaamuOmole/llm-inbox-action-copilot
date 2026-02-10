@@ -121,7 +121,7 @@ Action detection is easier than action _typing_. Architectural choices matter mo
 
 ### Quantitative comparison of model architecture
 
-The comparison highlights a consistent trade-off between action recall and precision, as expected, as well as between action recall and the intent accuracy across different architectures. All versions were evaluated on the same gold-labeled dataset of 200 real emails.
+The LLM used here is the llama3.1:8b. The comparison below highlights a consistent trade-off between action recall and precision, as expected, as well as between action recall and the intent accuracy across different architectures. All versions were evaluated on the same gold-labeled dataset of 200 real emails.
 
 **Table 1: Model comparison across four pipeline variants**
 | Version | Architecture | Action Precision | Action Recall | Action F1 | Action Accuracy | Intent Accuracy | Key Trade-off |
@@ -129,7 +129,7 @@ The comparison highlights a consistent trade-off between action recall and preci
 | v1 | Single-stage classification | 0.66 | 0.89 | 0.76 | 0.77 | 0.40 | High recall, weak intent separation |
 | v2 | Stricter prompt rules | 0.82 | 0.39 | 0.53 | 0.72 | 0.48 | Conservative action detection |
 | v3 | Two-stage pipeline | 0.44 | 0.98 | 0.61 | 0.48 | 0.28 | Over-triggers actions |
-| v4 | Confidence-gated routing | 0.65 | 0.61 | 0.63 | 0.71 | 0.37 | Balanced precision and recall |
+| ⭐ v4 | Confidence-gated routing | 0.65 | 0.61 | 0.63 | 0.71 | 0.37 | Balanced precision and recall |
 
 In the Table, v1 achieved a high recall by aggressively flagging emails as actionable, but suffered from over-triggering and weak intent separation. Stricter prompt rules in v2 improved intent accuracy but significantly reduced recall, missing many genuine actions. The two-stage pipeline in v3 shows the highest recall of 98%, where the model consistently over-triggers emails as actionable but very imprecise in doing so. This version also resulted in the lowest intent accuracy, which can be attributed to the 2-stage workflow, where the model already aggressively flags non-actionable emails as actionable.
 
@@ -152,6 +152,45 @@ Each point represents a different system architecture evaluated on the same gold
 </p>
 
 Above is the normalized intent confusion matrix for the final confidence-gated system (v4). Most errors occur between semantically adjacent workflow categories (e.g. invoices vs informational receipts), reflecting inherent ambiguity in inbox triage rather than language understanding failures.
+
+### Model Comparison (v4 architecture)
+
+To evaluate the impact of model choice independently of system design, the final confidence-gated architecture (v4) was benchmarked across six local LLMs of varying sizes and families. All models were evaluated on the same gold-labeled dataset of 200 real emails using identical prompts and evaluation scripts.
+
+| Model          | Intent Acc | Action Prec | Action Rec | Action F1 | Action Acc |
+| -------------- | ---------- | ----------- | ---------- | --------- | ---------- |
+| llama3.1:8b ⭐ | 0.37       | 0.649       | 0.61       | 0.629     | 0.705      |
+| gemma2:9b      | 0.45       | 0.53        | 0.756      | 0.623     | 0.625      |
+| mistral:7b     | 0.427      | 0.577       | 0.556      | 0.566     | 0.653      |
+| qwen2.5:7b     | 0.45       | 0.775       | 0.378      | 0.508     | 0.7        |
+| qwen2.5:14b    | 0.51       | 0.707       | 0.354      | 0.472     | 0.675      |
+| llama3.2:3b    | 0.285      | 0.667       | 0.268      | 0.383     | 0.645      |
+
+Across six local LLMs, including the initial `llama3.1:8b`, performance differences were driven more by model “risk profiles” than by raw capability. Larger models slightly improved intent accuracy but often became overly conservative in action detection, while some mid-sized models favoured recall at the cost of precision. The original `llama3.1:8b` baseline remained the most balanced overall, achieving the highest action F1 score. These results suggest that architectural choices and decision thresholds matter more than model size once basic language competence is reached.
+
+Binary action detection is not the hard part for the LLMs. The main difficulty lies in intent separation, arising from the errors in false positives and false negatives classifications. This shows that this task has an inherent ambiguity ceiling i.e., another person will label intents in the emails differently from me, and so would a language model.
+
+<p align="center">
+  <img src="./plots/model_precision_recall_v4.png" alt="Action Detection Trade-offs Across Architectures" width="400">
+  <br>
+  <em>Precision–recall trade-offs for action detection across local LLMs using the same confidence-gated architecture (v4). Differences reflect model-specific risk profiles rather than changes in pipeline design.</em>
+</p>
+
+#### Key observations
+
+Intent accuracy improves modestly with stronger instruction-following models, with Qwen models achieving the highest scores, but no model exceeds ~51% accuracy. This suggests an inherent ceiling driven by workflow ambiguity rather than language understanding.
+
+- Action detection behaviour varies significantly by model family:
+  - The `gemma2:9b` model favour recall, aggressively flagging potential actions at the cost of false positives.
+  - `qwen2.5:14b` is more conservative, achieving high precision but missing many genuine actions.
+  - `llama3.1:8b` provides the most balanced precision–recall trade-off.
+- Model size alone does not determine performance. Larger models tend to express higher confidence but do not resolve ambiguous inbox categories such as receipts versus invoices or notifications versus requests.
+
+#### Practical takeaway
+
+Across models, architectural choices and decision thresholds had a greater impact on system behaviour than model selection. The original `llama3.1:8b` baseline achieved the best overall balance (highest action F1) and remained competitive across all metrics, reinforcing the decision to prioritise system design over model scaling.
+
+Once basic language competence is reached, model choice primarily shifts risk tolerance rather than correctness.
 
 ---
 

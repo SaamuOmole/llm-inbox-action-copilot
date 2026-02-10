@@ -11,7 +11,8 @@ dependencies = [
     "bs4 (>=0.0.2,<0.0.3)",
     "python-dateutil (>=2.9.0.post0,<3.0.0)",
     "streamlit (>=1.54.0,<2.0.0)",
-    "matplotlib (>=3.10.8,<4.0.0)"
+    "matplotlib (>=3.10.8,<4.0.0)",
+    "openai (>=2.18.0,<3.0.0)"
 ]
 
 [tool.poetry]
