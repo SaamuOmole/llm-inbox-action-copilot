@@ -19,8 +19,14 @@ Decision rule:
 
 Output JSON only. No extra text.
 
+If the “Similar labeled examples” block is present, use it as guidance. Prefer patterns that match high-similarity examples, but still decide based on the current email.
+
 SUBJECT:
 {subject}
 
 BODY:
 {body}
+
+Context (may be empty):
+{context}
+

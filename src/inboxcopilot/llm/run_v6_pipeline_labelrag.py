@@ -7,60 +7,19 @@ from typing import Dict, Any
 
 from inboxcopilot.llm.providers import OllamaProvider, OpenAIProvider
 from inboxcopilot.llm.validate_json import extract_json_object
-
-
-ACTION_SCHEMA = {
-  "name": "ActionDecision",
-  "schema": {
-    "type": "object",
-    "properties": {
-      "action_present": {"type": "boolean"},
-      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-    },
-    "required": ["action_present", "confidence"],
-    "additionalProperties": False,
-  },
-}
-
-INTENT_ACTION_SCHEMA = {
-  "name": "ActionIntent",
-  "schema": {
-    "type": "object",
-    "properties": {
-      "intent": {"type": "string", "enum": ["needs_reply","meeting_request","invoice_payment","action_required"]},
-    },
-    "required": ["intent"],
-    "additionalProperties": False,
-  },
-}
-
-INTENT_NOACTION_SCHEMA = {
-  "name": "NonActionIntent",
-  "schema": {
-    "type": "object",
-    "properties": {
-      "intent": {"type": "string", "enum": ["info_only","newsletter"]},
-    },
-    "required": ["intent"],
-    "additionalProperties": False,
-  },
-}
+from inboxcopilot.rag.label_context import build_label_aware_context
 
 
 PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
-if PROVIDER == "openai":
-    provider = OpenAIProvider()
-else:
-    provider = OllamaProvider()
+provider = OpenAIProvider() if PROVIDER == "openai" else OllamaProvider()
 
 PROMPT_ACTION = Path("src/inboxcopilot/llm/prompts/action_present_conf_v4.txt")
 PROMPT_IF_ACTION = Path("src/inboxcopilot/llm/prompts/intent_if_action_v3.txt")
 PROMPT_IF_NO_ACTION = Path("src/inboxcopilot/llm/prompts/intent_if_no_action_v3.txt")
 
 GOLD_PATH = Path("data/gold/gold_labeled.jsonl")
-PROC_PATH = Path("data/processed/emails_weak_labeled.jsonl")
-# OUT_PATH = Path("data/predictions/intent_action_v4.jsonl")
-OUT_PATH = Path(os.getenv("PRED_PATH", "data/predictions/intent_action_v4.jsonl"))
+PROC_PATH = Path("data/processed/emails_clean.jsonl")
+OUT_PATH = Path(os.getenv("PRED_PATH", "data/predictions/intent_action_v6_labelrag.jsonl"))
 
 ACTION_INTENTS = {"needs_reply", "meeting_request", "invoice_payment", "action_required"}
 NO_ACTION_INTENTS = {"info_only", "newsletter"}
@@ -120,10 +79,9 @@ def main():
     gold_idx = load_index_jsonl(GOLD_PATH, "email_id")
     proc_idx = load_index_jsonl(PROC_PATH, "email_id")
 
-    # provider = OllamaProvider()
-
     n_ok = 0
     n_err = 0
+    rag_used = 0
 
     with OUT_PATH.open("w", encoding="utf-8") as fout:
         for email_id in gold_idx.keys():
@@ -137,39 +95,36 @@ def main():
             body = (rec.get("body_clean") or "").strip()
 
             try:
-                # Stage 1
-                p1 = tmpl_action.format(subject=subject, body=body)
-                # raw1 = provider.generate(p1)
-                raw1 = (
-                    provider.generate(p1, json_schema=ACTION_SCHEMA)
-                    if PROVIDER == "openai"
-                    else provider.generate(p1)
-                )
+                # Stage 1 (NO RAG)
+                p1 = tmpl_action.format(subject=subject, body=body, context="")
+                raw1 = provider.generate(p1)
                 ap, conf = parse_stage1(raw1)
 
-                # Confidence-aware routing:
-                # Only route to ACTION branch if ap is True and confidence is not low
+                # Confidence-aware routing (same as v4)
                 route_action = (ap is True) and (conf in ("high", "medium"))
 
-                if route_action:
-                    p2 = tmpl_if_action.format(subject=subject, body=body)
-                    # raw2 = provider.generate(p2)
-                    raw2 = (
-                        provider.generate(p2, json_schema=INTENT_ACTION_SCHEMA)
-                        if PROVIDER == "openai"
-                        else provider.generate(p2)
+                # Label-aware RAG context for Stage 2
+                # Only use when not-high confidence OR short email
+                use_rag = (conf in ("low", "medium")) or (len(body) < 400)
+                context = ""
+                if use_rag:
+                    context = build_label_aware_context(
+                        email_id=email_id,
+                        subject=subject,
+                        body=body,
+                        k_similar=6,
+                        max_examples=4,
                     )
+                    rag_used += 1
+
+                if route_action:
+                    p2 = tmpl_if_action.format(subject=subject, body=body, context=context)
+                    raw2 = provider.generate(p2)
                     intent = parse_intent(raw2, ACTION_INTENTS)
                 else:
-                    # Force action_present False in final output if we routed to non-action
                     ap = False
-                    p2 = tmpl_if_no_action.format(subject=subject, body=body)
-                    # raw2 = provider.generate(p2)
-                    raw2 = (
-                        provider.generate(p2, json_schema=INTENT_NOACTION_SCHEMA)
-                        if PROVIDER == "openai"
-                        else provider.generate(p2)
-                    )
+                    p2 = tmpl_if_no_action.format(subject=subject, body=body, context=context)
+                    raw2 = provider.generate(p2)
                     intent = parse_intent(raw2, NO_ACTION_INTENTS)
 
                 out = {
@@ -177,9 +132,9 @@ def main():
                     "intent_pred": intent,
                     "action_present_pred": ap,
                     "stage1_confidence": conf,
+                    "rag_used": use_rag,
                     "model": provider.model,
-                    "pipeline_version": "v4",
-                    "provider": PROVIDER,
+                    "pipeline_version": "v6_labelrag",
                 }
                 fout.write(json.dumps(out, ensure_ascii=False) + "\n")
                 n_ok += 1
@@ -189,7 +144,7 @@ def main():
                 n_err += 1
 
     print(f"Wrote predictions to {OUT_PATH}")
-    print(f"OK: {n_ok} | ERR: {n_err}")
+    print(f"OK: {n_ok} | ERR: {n_err} | label-RAG used: {rag_used}/{n_ok+n_err}")
 
 
 if __name__ == "__main__":

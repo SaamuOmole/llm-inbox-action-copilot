@@ -5,4 +5,6 @@ MODELS = [
     {"model": "qwen2.5:7b",    "precision": 0.775, "recall": 0.378},
     {"model": "qwen2.5:14b",   "precision": 0.707, "recall": 0.354},
     {"model": "llama3.2:3b",   "precision": 0.667, "recall": 0.268},
+    {"model": "gpt-4o-mini",   "precision": 0.627, "recall": 0.451},
+    {"model": "gpt-4.1",      "precision": 0.767, "recall": 0.418},
 ]

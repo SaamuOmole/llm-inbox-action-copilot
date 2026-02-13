@@ -49,7 +49,7 @@ def safe_div(a: float, b: float) -> float:
 def main():
     gold_path = Path(os.getenv("GOLD_PATH", "data/gold/gold_labeled.jsonl"))
     pred_path = Path(os.getenv("PRED_PATH"))  # must be set
-    out_dir = Path(os.getenv("OUT_DIR", "data/results"))
+    out_dir = Path(os.getenv("OUT_DIR", "data/results/v5_v6_results")) # change as appropriate
     version = os.getenv("VERSION", "v4")
 
     if not pred_path:
@@ -70,7 +70,7 @@ def main():
             preds[r["email_id"]] = r
             if model_name is None:
                 model_name = r.get("model", "unknown")
-
+    print(model_name)
     # Evaluate on intersection
     ids = [eid for eid in gold.keys() if eid in preds]
     n = len(ids)
@@ -129,6 +129,7 @@ def main():
 
     # Write metrics JSON
     safe_model = (metrics.model.replace(":", "_").replace("/", "_").replace(" ", "_"))
+    print(safe_model)
     out_path = out_dir / f"metrics__{version}__{safe_model}.json"
     out_path.write_text(json.dumps(asdict(metrics), indent=2), encoding="utf-8")
 

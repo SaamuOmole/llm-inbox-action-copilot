@@ -2,10 +2,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-RESULTS_DIR = Path("data/results")
+RESULTS_DIR = Path("data/results/v5_v6_results")
 
 COLS = [
-    ("model", "Model"),
+    ("version", "Version"),
+    # ("model", "Model")v,
     ("intent_accuracy", "Intent Acc"),
     ("action_precision", "Action Prec"),
     ("action_recall", "Action Rec"),
@@ -14,7 +15,7 @@ COLS = [
 ]
 
 def main():
-    files = sorted(RESULTS_DIR.glob("metrics__v4__*.json"))
+    files = sorted(RESULTS_DIR.glob("metrics__*__*.json"))
     rows = [json.loads(p.read_text(encoding="utf-8")) for p in files]
 
     # sort by Action F1 desc, then Intent Acc desc
