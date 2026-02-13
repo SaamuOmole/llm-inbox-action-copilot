@@ -217,34 +217,10 @@ Two RAG variants were tested namely, v5 and v6, while retaining the v4 architect
 
 The v6 RAG architecture is the label-aware instance with retrieved few-shot examples designed to address v5’s shortcomings. The RAG pipeline mainly stayed the same but was redesigned so that the contexts also include similar retrieved emails formatted as labeled examples. Gold labels are preferred, where available, with weak labels as fallback.
 
-Here are the tabulated results for v4, v5 and v6 architectures:
-
-| Version              | Intent Acc | Action Prec | Action Rec | Action F1 | Action Acc |
-| -------------------- | ---------- | ----------- | ---------- | --------- | ---------- |
-| v6 (label-aware RAG) | 0.395      | 0.65        | 0.634      | 0.642     | 0.71       |
-| v5 (naïve RAG)       | 0.365      | 0.65        | 0.634      | 0.642     | 0.71       |
-| v4 (baseline)        | 0.37       | 0.649       | 0.61       | 0.629     | 0.705      |
-
-In v5, intent accuracy marginally reduced, compared to v4, while action recall and precision also slightly increased. In the Naïve semantic retrieval, without providing explicit label guidance, the model shifted toward becoming slightly less conservative in detecting actions. The action metrics in v6 are identical to v5, except the slightly improved intent accuracy, which can be attributed to the injected labels which introduced limited supervisory signals.
-
-In both v5 and v6, retrieval provided limited additional signal, resulting in no substantial gains. This demonstrates that RAG is not beneficial for this classification task.
-
-For structured intent detection with a limited label space:
-
-- Prompt design and architectural decisions had greater impact than retrieval augmentation.
-- RAG provided only marginal performance gains -- its effectiveness depends on whether retrieval introduces new, task-relevant signal.
-
-As a result, the confidence-gated two-stage pipeline (v4) remains the preferred baseline architecture.
-
-## Architecture Evolution
+#### Architecture Evolution
 
 ```mermaid
 flowchart TD
-
-subgraph v1["v1 — Single-Stage Classification"]
-A1[Email: subject + body] --> B1[LLM]
-B1 --> C1[Intent + Action]
-end
 
 subgraph v4["v4 — Confidence-Gated Two-Stage Pipeline (Baseline)"]
 A4[Email: subject + body] --> B4[Stage 1: Action Detection]
@@ -266,6 +242,25 @@ B6 --> C6[Stage 2 + Retrieved Labeled Examples]
 C6 --> D6[Final Output]
 end
 ```
+
+Here are the tabulated results for v4, v5 and v6 architectures:
+
+| Version              | Intent Acc | Action Prec | Action Rec | Action F1 | Action Acc |
+| -------------------- | ---------- | ----------- | ---------- | --------- | ---------- |
+| v6 (label-aware RAG) | 0.395      | 0.65        | 0.634      | 0.642     | 0.71       |
+| v5 (naïve RAG)       | 0.365      | 0.65        | 0.634      | 0.642     | 0.71       |
+| v4 (baseline)        | 0.37       | 0.649       | 0.61       | 0.629     | 0.705      |
+
+In v5, intent accuracy marginally reduced, compared to v4, while action recall and precision also slightly increased. In the Naïve semantic retrieval, without providing explicit label guidance, the model shifted toward becoming slightly less conservative in detecting actions. The action metrics in v6 are identical to v5, except the slightly improved intent accuracy, which can be attributed to the injected labels which introduced limited supervisory signals.
+
+In both v5 and v6, retrieval provided limited additional signal, resulting in no substantial gains. This demonstrates that RAG is not beneficial for this classification task.
+
+For structured intent detection with a limited label space:
+
+- Prompt design and architectural decisions had greater impact than retrieval augmentation.
+- RAG provided only marginal performance gains -- its effectiveness depends on whether retrieval introduces new, task-relevant signal.
+
+As a result, the confidence-gated two-stage pipeline (v4) remains the preferred baseline architecture.
 
 ---
 
