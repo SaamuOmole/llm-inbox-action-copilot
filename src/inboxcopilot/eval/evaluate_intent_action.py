@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
 GOLD_PATH = Path("data/gold/gold_labeled.jsonl")
-PRED_PATH = Path("data/predictions/intent_action_v1.jsonl")
+PRED_PATH = Path(os.getenv("PRED_PATH", "data/predictions/intent_action_v1.jsonl"))
 
 INTENTS = [
     "needs_reply",

@@ -1,8 +1,13 @@
 # LLM Inbox Action Copilot (Local-First)
 
-A local-first LLM system for **email triage and action detection**, built to explore how large language models can support everyday inbox workflows without relying on cloud APIs.
+A local-first LLM system for **email triage and action detection**, built to explore how architectural design, retrieval, and supervised learning compare to prompt-only LLM approaches in real inbox workflows.
 
-The project focuses on **detecting whether an email requires action**, classifying the _type_ of action, and understanding the **limits of prompt-only intent classification** through careful evaluation and iterative system design.
+The project focuses on these:
+
+- Detecting whether an email requires action
+- Classifying the type of action
+- Understanding when prompt engineering stops helping
+- Comparing LLM pipelines against supervised embedding-based models
 
 ---
 
@@ -16,23 +21,24 @@ Modern inboxes mix:
 - meeting requests
 - genuine action requests
 
-Rule-based filters are brittle, while end-to-end LLM solutions often hide failure modes behind impressive demos.
+Rule-based filters are brittle, while end-to-end LLM solutions often hide failure modes behind impressive outputs.
 
 This project was built to answer a more practical question:
 
-> _What can a local LLM reliably do for inbox triage, and where do architectural choices matter more than model size?_
+> _For structured inbox triage, what matters more: model size, prompt design, retrieval, or supervised learning?_
 
 ---
 
 ## Key Features
 
-- **Local-first**: runs entirely on my machine using Ollama
-- **Benchmark against cloud-hosted models**: started with local models but extended to benchmark against cloud-hosted LLMs via OpenAI API
-- **Real email data**: emails exported from Thunderbird as `.eml` files
-- **Clean preprocessing**: robust HTML → text extraction with reply stripping
-- **Weak → gold labeling workflow** with a custom Streamlit UI
-- **Multiple LLM architectures** evaluated (single-stage, two-stage, confidence-gated)
-- **Transparent evaluation** using accuracy, precision/recall, and confusion matrices
+- Local-first architecture (Ollama for LLM inference)
+- Cloud benchmarking via OpenAI API (GPT-4o-mini, GPT-4.1)
+- Real personal email data exported from Thunderbird (.eml)
+- Robust preprocessing (HTML cleaning + reply stripping)
+- Weak → gold labeling workflow with custom Streamlit UI
+- RAG integration (retrieval over historical emails and labelled examples)
+- Supervised embedding-based classifier (5-fold OOF evaluation)
+- Transparent evaluation (accuracy, precision/recall, confusion matrices)
 
 No emails are sent, modified, or uploaded anywhere.
 
@@ -41,30 +47,32 @@ No emails are sent, modified, or uploaded anywhere.
 ## High-Level Pipeline
 
 1. **Email ingestion**
-   - Parse `.eml` files
+   - Parse .eml files
    - Extract headers, subject, sender
-   - Clean HTML and isolate the most recent message body
+   - Clean HTML and isolate latest message body
 
 2. **Weak labeling**
-   - Heuristic rules generate approximate labels for:
-     - intent
-     - action presence
+   - Heuristic rules generate approximate intent and action labels
    - Used only for bootstrapping and sampling
 
 3. **Gold labeling**
-   - A Streamlit app is used to manually label a representative subset
-   - Labels focus on _user workflow_, not just content
+   - Manual labeling of a representative subset via Streamlit
+   - Focused on _user workflow_, not surface keywords
 
-4. **LLM inference (local and cloud-hosted)**
-   - Local models served via Ollama
-   - OpenAI Responses API and Structure Outputs
-   - Strict JSON outputs
-   - Deterministic settings (temperature = 0)
+4. **Modeling approaches**
+   - LLM pipelines (v1–v4)
+     - Single-stage → staged → confidence-gated routing
+   - RAG extensions (v5–v6)
+     - Retrieval over historical emails and labelled examples
+   - Supervised baseline (v7)
+     - Sentence-transformer embeddings + logistic regression
+     - Evaluated with 5-fold out-of-fold cross-validation
 
-5. **Evaluation & iteration**
-   - Compare predictions to gold labels
-   - Inspect confusion matrices
-   - Refine system design (not just prompts)
+5. **Evaluation & comparison**
+   - Structured evaluation scripts
+   - Confusion matrices
+   - Precision–recall trade-off analysis
+   - Cross-model benchmarking (local vs OpenAI models)
 
 ---
 
@@ -86,32 +94,31 @@ No emails are sent, modified, or uploaded anywhere.
 
 ---
 
-## LLM Architectures Explored
+## Architectural Evolution
 
-### v1 – Single-stage classification
+### v1–v4: Prompt-Based LLM Pipelines
 
-- One prompt predicts intent + action presence
-- High recall for actions, weaker intent separation
+- Single-stage → two-stage → confidence-gated routing
+- Explored structured JSON outputs and deterministic inference
+- Demonstrated limits of prompt-only intent classification
 
-### v2 – Stricter decision rules
+## v5–v6: Retrieval-Augmented Variants
 
-- Improved intent accuracy
-- Over-conservative action detection
+- Incorporated semantic retrieval from:
+  - Historical emails
+  - Labelled examples
+- Improved contextual grounding but did not outperform v4 baseline
 
-### v3 – Two-stage pipeline
+## v7: Supervised Embedding + Logistic Regression (Final)
 
-- Stage 1: action detection (high recall)
-- Stage 2: intent classification
-- Revealed false-positive routing issues
-
-### v4 – Confidence-gated routing (final)
-
-- Stage 1 outputs action presence **and confidence**
-- Low-confidence cases routed to non-action path
-- Balanced precision/recall and interpretable behavior
+- Sentence-transformer embeddings
+- 5-fold out-of-fold cross-validation
+- Highest overall performance
 
 **Key insight:**  
-Action detection is easier than action _typing_. Architectural choices matter more than model size once a basic competence threshold is reached.
+For structured, closed-set classification with labelled data, a lightweight supervised model significantly outperforms prompt-engineered LLM pipelines.
+
+Architectural alignment matters more than model size.
 
 ---
 
@@ -119,7 +126,7 @@ Action detection is easier than action _typing_. Architectural choices matter mo
 
 ### Quantitative Comparison of Model Architecture
 
-The LLM used here is the llama3.1:8b. The comparison below highlights a consistent trade-off between action recall and precision, as expected, as well as between action recall and the intent accuracy across different architectures. All versions were evaluated on the same gold-labeled dataset of 200 real emails.
+The LLM used here is the `llama3.1:8b`. The comparison below highlights a consistent trade-off between action recall and precision, as expected, as well as between action recall and the intent accuracy across different architectures. All versions were evaluated on the same gold-labeled dataset of 200 real emails.
 
 **Table 1: Model comparison across four pipeline variants**
 | Version | Architecture | Action Precision | Action Recall | Action F1 | Action Accuracy | Intent Accuracy | Key Trade-off |
@@ -144,7 +151,7 @@ While intent accuracy is modest, error analysis shows most disagreements arise f
 Each point represents a different system architecture evaluated on the same gold dataset. Designs that maximise recall tend to over-trigger actions, while conservative designs improve precision at the cost of missed actions. The final confidence-gated architecture (v4) balances these trade-offs, producing behavior closer to real-world inbox tools.
 
 <p align="center">
-  <img src="./plots/intent_confusion_matrix_v4.png" alt="Action Detection Trade-offs Across Architectures" width="500">
+  <img src="./plots/intent_confusion_matrix_v4.png" alt="V4 Confusion Matrix" width="500">
   <br>
   <em>Confusion matrix of gold and predicted intents (200 email inbox samples)</em>
 </p>
@@ -169,7 +176,7 @@ To evaluate the impact of model choice independently of system design, the final
 Across the six local LLMs, including the initial `llama3.1:8b`, performance differences were driven more by model “risk profiles” than by raw capability. Larger models slightly improved intent accuracy but often became overly conservative in action detection, while some mid-sized models favoured recall at the cost of precision.
 
 <p align="center">
-  <img src="./plots/model_precision_recall_v4.png" alt="Action Detection Trade-offs Across Architectures" width="400">
+  <img src="./plots/model_precision_recall_v4.png" alt="Action Detection Trade-offs Across LLMs" width="400">
   <br>
   <em>Precision–recall trade-offs for action detection across local LLMs using the same confidence-gated architecture (v4). Differences reflect model-specific risk profiles rather than changes in pipeline design.</em>
 </p>
@@ -198,7 +205,7 @@ Across all models, architectural choices and decision thresholds had a greater i
 
 ### Retrieval-Augmented Variants (v5 & v6)
 
-After establishing a strong baseline with the confidence-gated two-stage pipeline (v4), I explored whether Retrieval-Augmented Generation (RAG) could improve performance by providing additional contextual signals from previously processed emails. To aid this, embeddings xxx
+After establishing a strong baseline with the confidence-gated two-stage pipeline (v4), I explored whether Retrieval-Augmented Generation (RAG) could improve performance by providing additional contextual signals from previously processed emails. The texts were transformed to embeddings and index in the vector store.
 
 The motivation was:
 
@@ -217,7 +224,7 @@ Two RAG variants were tested namely, v5 and v6, while retaining the v4 architect
 
 The v6 RAG architecture is the label-aware instance with retrieved few-shot examples designed to address v5’s shortcomings. The RAG pipeline mainly stayed the same but was redesigned so that the contexts also include similar retrieved emails formatted as labeled examples. Gold labels are preferred, where available, with weak labels as fallback.
 
-#### Architecture Evolution
+#### Architecture Evolution (v4 - v6)
 
 ```mermaid
 flowchart TD
@@ -262,36 +269,158 @@ For structured intent detection with a limited label space:
 
 As a result, the confidence-gated two-stage pipeline (v4) remains the preferred baseline architecture.
 
+### v7 – Supervised Embedding + Logistic Regression (5-Fold OOF)
+
+To establish a supervised baseline, I trained a logistic regression classifier on sentence-transformer embeddings using 5-fold out-of-fold (OOF) cross-validation to prevent data leakage.
+
+Results (OOF evaluation on 200 gold emails):
+
+| Metric           | v7 (Embedding + LR) |
+| ---------------- | ------------------- |
+| Intent Accuracy  | 0.665               |
+| Action Accuracy  | 0.790               |
+| Action Precision | 0.704               |
+| Action Recall    | 0.841               |
+| Action F1        | 0.767               |
+
+<p align="center">
+  <img src="./plots/intent_confusion_matrix_v7.png" alt="V7 Confusion Matrix" width="500">
+  <br>
+  <em>Confusion matrix of gold and predicted intents (200 email inbox samples)</em>
+</p>
+
+Compared to the baseline LLM-based pipeline (v4):
+
+- Intent accuracy improved from 0.37 → 0.665
+- Action F1 improved from 0.629 → 0.767
+- Action recall improved significantly (0.61 → 0.84)
+
+This demonstrates that for structured multi-class classification with labelled data, a supervised embedding-based classifier can substantially outperform zero-shot or prompt-engineered LLM pipelines.
+
+### Model Comparison Summary
+
+Across architectural iterations (v1–v6), performance improvements were achieved through prompt refinement, staged routing, confidence-aware branching, and RAG integration. However, the supervised embedding + logistic regression model (v7) delivered the strongest results overall.
+
+While LLM pipelines offer flexibility and reasoning capabilities, the supervised model proved more reliable and better aligned with the closed-set nature of the task. This highlights an important engineering principle: model complexity should match task structure — larger generative models are not always optimal for structured classification when labelled data is available.
+
+---
+
+## 🎯 Key Takeaways
+
+This project demonstrates the full lifecycle of building an intelligent email triage system — from raw email parsing and weak supervision, through prompt-engineered LLM pipelines and RAG experimentation, to supervised embedding-based fine-tuning with proper cross-validation.
+
+The key insight is architectural alignment: while LLM pipelines (v1–v6) successfully demonstrated zero-shot reasoning and structured prompt design, a supervised embedding + logistic regression model (v7) significantly outperformed them for this structured classification task. With labelled data available, a lightweight supervised model proved more accurate, more stable, and better suited to closed-set intent prediction.
+
+The project ultimately highlights a practical engineering principle:
+
+> _The most powerful solution is not necessarily the largest model — it is the model best aligned with the problem structure and evaluation constraints._
+
+This project reflects real-world ML system development: experimentation, evaluation discipline, architectural refinement, and evidence-driven model selection.
+
+## ▶️ How to Run
+
+**Install dependencies**
+
+The project uses Poetry for dependency management. Install dependencies with:
+
+```
+poetry install
+```
+
+There's also a `requirements.txt` file that can be used to install dependencies using:
+
+```
+pip install -r requirements.txt
+```
+
+To use local LLMs:
+
+```
+brew install ollama
+ollama pull llama3.1:8b
+```
+
+**Process emails**
+
+Export `.eml` files (e.g., from Thunderbird) and run:
+
+```
+python -m inboxcopilot.parse_email
+```
+
+This generates:
+
+```
+data/processed/emails_clean.jsonl
+```
+
+**Label Gold Set**
+
+Launch the labeling UI:
+
+```
+streamlit run src/inboxcopilot/label_ui.py
+```
+
+Gold labels are stored in:
+
+```
+data/gold/gold_labeled.jsonl
+```
+
+\*\*Run LLM Pipeline (v4)
+
+```
+python -m inboxcopilot.llm.run_v4_pipeline
+```
+
+```
+python -m inboxcopilot.eval.evaluate_intent_action
+```
+
+\*\*Run Supervised Model with Embeddings and Logistic Regression (v7)
+
+```
+python -m inboxcopilot.finetune.run_lr_oof
+python -m inboxcopilot.eval.evaluate_intent_action
+```
+
 ---
 
 ## Why This Project Is Different
 
-- Uses **real personal email data**, not synthetic benchmarks
-- Prioritizes **evaluation and error analysis** over model chasing
-- Demonstrates when **prompt tuning stops helping**
-- Shows how system design can outperform model upgrades
-- Entirely **local and privacy-preserving**
+- Built on real personal email data, not synthetic benchmarks
+- Combines LLM pipelines, RAG, and supervised ML in one system
+- Uses 5-fold cross-validation to prevent data leakage
+- Demonstrates where prompt engineering helps and where supervised learning wins
+- Explicitly compares zero-shot LLMs vs supervised embedding models
+- Highlights that model alignment to task structure matters more than model size
+- Fully local-first and privacy-preserving
 
 ---
 
 ## Tech Stack
 
 - Python
-- Ollama (local LLM inference)
+- Ollama (local LLMs: LLaMA, Qwen, Mistral, Gemma)
+- OpenAI API (GPT-4o-mini, GPT-4.1 for comparison with local LLMs)
+- Sentence-transformer embeddings + Logistic Regression (supervised learning, 5-fold OOF evaluation)
+- FAISS vector index (RAG retrieval)
 - Streamlit (labeling UI)
-- BeautifulSoup / email parser
-- FAISS (planned, for RAG)
-- JSONL-based datasets and evaluations
+- Thunderbird (.eml export)
+- BeautifulSoup + email parser
+- Matplotlib (evaluation & visualisation)
 
 ---
 
 ## Future Work
 
-Planned extensions (intentionally not rushed):
+The project could be expanded to include the following:
 
-- **RAG**: retrieve related past emails to ground action summaries
-- **Agent workflows**: draft replies, propose calendar events, create task objects (user-approved only)
-- **UI layer**: interactive inbox triage demo
+- Agent workflows (reply drafting, task creation, calendar suggestions)
+- Lightweight model fine-tuning & distillation
+- Interactive inbox triage UI
+- Active learning for efficient label expansion
 
 ---
 

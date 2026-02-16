@@ -38,5 +38,5 @@ cbar = fig.colorbar(im, ax=ax)
 cbar.set_label("Proportion")
 
 plt.tight_layout()
-plt.savefig("intent_confusion_matrix_v4.png", dpi=200)
+plt.savefig("plots/intent_confusion_matrix_v7.png", dpi=200)
 plt.close()
