@@ -16,7 +16,7 @@ ax.set_yticklabels(INTENTS)
 
 ax.set_xlabel("Predicted intent")
 ax.set_ylabel("Gold intent")
-ax.set_title("Intent Confusion Matrix (v4 - Normalized)")
+ax.set_title("Intent Confusion Matrix (v7 - Normalized)")
 
 # Add values inside cells
 for i in range(len(INTENTS)):

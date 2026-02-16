@@ -275,6 +275,10 @@ To establish a supervised baseline, I trained a logistic regression classifier o
 
 Results (OOF evaluation on 200 gold emails):
 
+<div align="center">
+
+Table: v7 Performance Summary
+
 | Metric           | v7 (Embedding + LR) |
 | ---------------- | ------------------- |
 | Intent Accuracy  | 0.665               |
@@ -282,6 +286,8 @@ Results (OOF evaluation on 200 gold emails):
 | Action Precision | 0.704               |
 | Action Recall    | 0.841               |
 | Action F1        | 0.767               |
+
+</div>
 
 <p align="center">
   <img src="./plots/intent_confusion_matrix_v7.png" alt="V7 Confusion Matrix" width="500">
